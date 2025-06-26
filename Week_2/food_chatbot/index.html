@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Food Image Chatbot</title>
+    <style>
+        body { font-family: sans-serif; max-width: 700px; margin: auto; padding: 2rem; }
+        .chat-box { border: 1px solid #ddd; padding: 1rem; height: 300px; overflow-y: auto; margin-top: 1rem; }
+        .msg { margin: 0.5rem 0; }
+        .user { color: blue; }
+        .bot { color: green; }
+    </style>
+</head>
+<body>
+    <h2>Upload a food image</h2>
+    <form id="uploadForm">
+        <input type="file" id="fileInput" name="file" accept="image/*" required>
+        <button type="submit">Upload</button>
+    </form>
+
+    <div id="imageSection" style="display:none;">
+        <h3>Image Preview:</h3>
+        <img id="imagePreview" style="max-width: 100%;">
+        <hr>
+        <h3>Ask the food agent</h3>
+        <form id="chatForm">
+            <input type="text" id="questionInput" placeholder="Ask a question..." style="width: 80%;" required>
+            <button type="submit">Send</button>
+        </form>
+        <div class="chat-box" id="chatBox"></div>
+        <button id="viewHistoryBtn" style="margin-top: 1rem;">📜 View History</button>
+        <div id="historyBox" style="display:none; border:1px solid #ccc; padding:1rem; margin-top:1rem;"></div>
+    </div>
+
+    <script>
+        let sessionId = "";
+            const uploadForm = document.getElementById("uploadForm");
+            const chatForm = document.getElementById("chatForm");
+            const chatBox = document.getElementById("chatBox");
+
+            // Upload image
+            uploadForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = new FormData();
+                formData.append("file", document.getElementById("fileInput").files[0]);
+
+                const res = await fetch("/upload", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await res.json();
+                sessionId = data.session_id;
+
+                // Show image and chat UI
+                document.getElementById("imagePreview").src = data.image_url;
+                document.getElementById("imageSection").style.display = "block";
+                chatBox.innerHTML = "";
+
+                // Optional success message
+                alert("✅ Image uploaded successfully!");
+            };
+
+            // Chat interaction
+            chatForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const question = document.getElementById("questionInput").value;
+                chatBox.innerHTML += `<div class="msg user"><strong>You:</strong> ${question}</div>`;
+                document.getElementById("questionInput").value = "";
+
+                const formData = new FormData();
+                formData.append("session_id", sessionId);
+                formData.append("question", question);
+
+                try {
+                    const res = await fetch("/ask", {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    const data = await res.json();
+
+                    if (data.answer) {
+                        chatBox.innerHTML += `<div class="msg bot"><strong>Agent:</strong> ${data.answer}</div>`;
+                    } else {
+                        chatBox.innerHTML += `<div class="msg bot"><strong>Error:</strong> No answer returned</div>`;
+                        console.error("Unexpected response:", data);
+                    }
+                } catch (err) {
+                    chatBox.innerHTML += `<div class="msg bot"><strong>Error:</strong> Failed to get response</div>`;
+                    console.error("Fetch failed:", err);
+                }
+
+                chatBox.scrollTop = chatBox.scrollHeight;
+            };
+
+            // View history
+            document.getElementById("viewHistoryBtn").onclick = async () => {
+                if (!sessionId) return;
+                const res = await fetch(`/history/${sessionId}`);
+                const data = await res.json();
+                const box = document.getElementById("historyBox");
+
+                if (data.history && data.history.length > 0) {
+                    box.innerHTML = "<h4>Conversation History:</h4>" + data.history.map(
+                        h => `<div><b>You:</b> ${h.question}<br><b>Agent:</b> ${h.answer}</div><hr>`
+                    ).join("");
+                } else {
+                    box.innerHTML = "<i>No history found.</i>";
+                }
+
+                box.style.display = "block";
+            };    
+
+    </script>
+    
+</body>
+</html>
