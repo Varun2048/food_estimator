@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import os
 from uuid import uuid4
+import hashlib
 from food_agent import generate_caption, get_context_from_chroma, get_answer
 
 UPLOAD_DIR = "uploaded_images"
@@ -27,12 +28,18 @@ async def serve_index():
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
-    session_id = str(uuid4())
+    contents = await file.read()
+    file_hash = hashlib.md5(contents).hexdigest()
     ext = file.filename.split(".")[-1]
-    image_path = os.path.join(UPLOAD_DIR, f"{session_id}.{ext}")
+    image_path = os.path.join(UPLOAD_DIR, f"{file_hash}.{ext}")
 
-    with open(image_path, "wb") as f:
-        f.write(await file.read())
+    # Only save if not already saved
+    if not os.path.exists(image_path):
+        with open(image_path, "wb") as f:
+            f.write(contents)
+
+    # Create session ID
+    session_id = str(uuid4())
 
     caption = generate_caption(image_path)
 
