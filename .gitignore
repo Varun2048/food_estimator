@@ -1,5 +1,6 @@
 /.env
 /Seg_model/sam_vit_b_01ec64.pth
-/sam2/
-
-/sam2/
+sam2/*
+!sam2/sam2/LLaVa.ipynb
+!sam2/sam2/LLaVa_16.ipynb
+!sam2/sam2/LLaVa_one_vision.ipynb
